@@ -10,8 +10,12 @@ fix is a "double-ender": each side records locally. This is the guest's side.
 
 ## Features
 
-- **Lossless capture** — raw PCM via AudioWorklet straight to a 16-bit mono
-  WAV at the device's native sample rate. No lossy intermediate codec.
+- **Lossless capture** — raw PCM via AudioWorklet at the device's native
+  sample rate. No lossy codec anywhere in the pipeline.
+- **FLAC by default** — saves losslessly compressed FLAC (~50-60% of WAV
+  size for speech) via a built-in dependency-free encoder running in a
+  Worker; "Save as WAV instead" is one tap away. Tests prove byte-exact
+  losslessness against ffmpeg's reference decoder.
 - **Mic check that prevents ruined takes** — input picker, live level meter,
   silent/too-quiet/good/clipping status with plain-language fixes, and a
   5-second test recording you can play back before committing to an interview.
@@ -46,7 +50,8 @@ a friendly unsupported message.
 
 No build step. `npm install` once, then:
 
-- `npm test` — unit tests (WAV encoding, level analysis, payload budget)
+- `npm test` — unit tests (WAV/FLAC encoding incl. ffmpeg roundtrip proofs,
+  level analysis, payload budget; requires `ffmpeg` on PATH)
 - `npm run test:integration` — Playwright drives system Chrome with a fake
   microphone (tone/silence/clipping fixtures) through record, save, and
   crash-recovery flows, then validates the downloaded WAV byte-for-byte.

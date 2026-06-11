@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startServer } from '../serve.js';
 import { readWav } from './wavread.js';
+import { ffmpegDecode } from '../flacref.js';
+import { readFile } from 'node:fs/promises';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../..');
@@ -72,7 +74,7 @@ test('happy path: mic check, record, stop, save a valid WAV', async () => {
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.click('#btn-save'),
+      page.click('#btn-save-wav'),
     ]);
     assert.match(download.suggestedFilename(), /^alice-smith-recording-\d{4}-\d{2}-\d{2}-\d{4}\.wav$/);
     const wav = await readWav(await download.path());
@@ -147,9 +149,17 @@ test('crash recovery: reload mid-recording offers a saveable WAV', async () => {
       page.waitForEvent('download'),
       page.click('#btn-recover-save'),
     ]);
-    const wav = await readWav(await download.path());
-    assert.ok(wav.durationSeconds >= 4.5, `recovered at least one chunk, got ${wav.durationSeconds}s`);
-    assert.ok(wav.peak > 0.05, `recovered audio is audible, peak=${wav.peak}`);
+    assert.match(download.suggestedFilename(), /\.flac$/);
+    const flacBytes = await readFile(await download.path());
+    const sampleRate = (flacBytes[18] << 12) | (flacBytes[19] << 4) | (flacBytes[20] >> 4);
+    const { pcm, stderr } = await ffmpegDecode(flacBytes);
+    assert.equal(stderr, '', `reference decoder reported: ${stderr}`);
+    const samples = new Int16Array(pcm.buffer, pcm.byteOffset, pcm.length / 2);
+    let peak = 0;
+    for (let i = 0; i < samples.length; i++) peak = Math.max(peak, Math.abs(samples[i]) / 32767);
+    const durationSeconds = samples.length / sampleRate;
+    assert.ok(durationSeconds >= 4.5, `recovered at least one chunk, got ${durationSeconds}s`);
+    assert.ok(peak > 0.05, `recovered audio is audible, peak=${peak}`);
     await page.waitForSelector('#recovery-card', { state: 'hidden' });
   } finally {
     await browser.close();
@@ -205,13 +215,52 @@ test('storage panel reports and deletes the stored recording', async () => {
   }
 });
 
+test('FLAC save is byte-for-byte lossless against the WAV of the same take', async () => {
+  const { browser, page } = await launch(fixture('tone.wav'));
+  try {
+    await enableAndWaitLevel(page, 'good');
+    await page.click('#btn-start');
+    await page.waitForSelector('#screen-record:not([hidden])');
+    await page.waitForTimeout(2500);
+    await page.click('#btn-stop');
+    await page.waitForSelector('#screen-done:not([hidden])');
+
+    const [wavDl] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#btn-save-wav'),
+    ]);
+    const wavBytes = await readFile(await wavDl.path());
+
+    const [flacDl] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#btn-save'),
+    ]);
+    assert.match(flacDl.suggestedFilename(), /\.flac$/);
+    const flacBytes = await readFile(await flacDl.path());
+
+    assert.equal(String.fromCharCode(...flacBytes.subarray(0, 4)), 'fLaC');
+    assert.ok(flacBytes.length < wavBytes.length * 0.75,
+      `FLAC should be smaller: ${flacBytes.length} vs ${wavBytes.length}`);
+
+    const { pcm, stderr } = await ffmpegDecode(flacBytes);
+    assert.equal(stderr, '', `reference decoder reported: ${stderr}`);
+    assert.ok(pcm.equals(wavBytes.subarray(44)),
+      'FLAC must decode to PCM byte-identical to the WAV of the same recording');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('confirmed picker save frees the browser copy automatically', async () => {
   const { browser, page } = await launch(fixture('tone.wav'), () => {
     window.__savedBytes = 0;
     window.__closed = false;
     window.showSaveFilePicker = async () => ({
       createWritable: async () => ({
-        write: async (chunk) => { window.__savedBytes += chunk.byteLength; },
+        write: async (chunk) => {
+          if (!window.__head) window.__head = Array.from(chunk.slice(0, 4));
+          window.__savedBytes += chunk.byteLength;
+        },
         close: async () => { window.__closed = true; },
       }),
     });
@@ -226,8 +275,10 @@ test('confirmed picker save frees the browser copy automatically', async () => {
 
     await page.click('#btn-save');
     await page.waitForFunction(() => window.__closed === true);
-    const savedBytes = await page.evaluate(() => window.__savedBytes);
-    assert.ok(savedBytes > 100000, `whole file streamed to disk, got ${savedBytes} bytes`);
+    const { savedBytes, head } = await page.evaluate(() => ({ savedBytes: window.__savedBytes, head: window.__head }));
+    assert.deepEqual(head, [0x66, 0x4C, 0x61, 0x43], 'streamed file starts with fLaC magic');
+    assert.ok(savedBytes > 4000 && savedBytes < 150000,
+      `compressed FLAC of ~2s tone streamed to disk, got ${savedBytes} bytes`);
     assert.match(await page.textContent('#done-note'), /freed automatically/);
     assert.match(await page.textContent('#btn-save'), /another copy/);
     assert.equal(await page.isHidden('#save-confirm'), true, 'no manual confirm needed');
