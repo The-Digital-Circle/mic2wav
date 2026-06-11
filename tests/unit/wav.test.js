@@ -45,6 +45,7 @@ test('buildFilename slugs the name and stamps the date', () => {
   assert.equal(buildFilename('Alice Smith', d), 'alice-smith-recording-2026-06-11-1430.wav');
   assert.equal(buildFilename('', d), 'recording-2026-06-11-1430.wav');
   assert.equal(buildFilename('  Ünïcode! Guest  ', d), 'n-code-guest-recording-2026-06-11-1430.wav');
+  assert.equal(buildFilename('Alice', d, 'flac'), 'alice-recording-2026-06-11-1430.flac');
 });
 
 test('ChunkBatcher batches to the configured size and flushes the remainder', () => {

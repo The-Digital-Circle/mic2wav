@@ -32,7 +32,7 @@ export function wavHeader({ sampleRate, numSamples, channels = 1, bitDepth = 16 
   return buf;
 }
 
-export function buildFilename(name, date) {
+export function buildFilename(name, date, ext = 'wav') {
   const pad = (n) => String(n).padStart(2, '0');
   const stamp = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}`;
   const slug = (name || '')
@@ -40,7 +40,7 @@ export function buildFilename(name, date) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
-  return `${slug ? slug + '-' : ''}recording-${stamp}.wav`;
+  return `${slug ? slug + '-' : ''}recording-${stamp}.${ext}`;
 }
 
 export class ChunkBatcher {

@@ -528,7 +528,7 @@ document.addEventListener('visibilitychange', () => {
 
 let lastDownloadUrl = null;
 
-function triggerDownload(result) {
+function triggerDownload(result, ext = 'wav') {
   // Keep at most one object URL pinned, or repeated save/record cycles would
   // hold every past recording's data alive for the rest of the session.
   if (lastDownloadUrl) URL.revokeObjectURL(lastDownloadUrl);
@@ -536,7 +536,7 @@ function triggerDownload(result) {
   const url = URL.createObjectURL(result.blob);
   lastDownloadUrl = url;
   a.href = url;
-  a.download = buildFilename(result.name, new Date(result.startedAt));
+  a.download = buildFilename(result.name, new Date(result.startedAt), ext);
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -544,32 +544,100 @@ function triggerDownload(result) {
   window.addEventListener('pagehide', () => URL.revokeObjectURL(url), { once: true });
 }
 
-// Get the WAV onto the user's disk.
+// Losslessly compress the result's PCM (the WAV blob minus its 44-byte
+// header) to FLAC in a Worker. Output accumulates as ~16 MB Blob slices so a
+// 3-hour encode never holds the whole file in memory; the final Blob is a
+// lazy composite.
+function encodeToFlac(result, onProgress) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./flacworker.js', import.meta.url), { type: 'module' });
+    const pcm = result.blob.slice(44);
+    const blobs = [];
+    let group = [];
+    let groupSize = 0;
+    let sent = 0;
+    const flush = () => {
+      if (groupSize > 0) {
+        blobs.push(new Blob(group));
+        group = [];
+        groupSize = 0;
+      }
+    };
+    worker.onerror = (e) => {
+      worker.terminate();
+      reject(new Error(e.message || 'FLAC encoding failed'));
+    };
+    worker.onmessage = async ({ data }) => {
+      if (data.bytes?.byteLength) {
+        group.push(data.bytes);
+        groupSize += data.bytes.byteLength;
+        if (groupSize >= 16e6) flush();
+      }
+      if (data.type === 'done') {
+        flush();
+        worker.terminate();
+        resolve(new Blob(blobs, { type: 'audio/flac' }));
+        return;
+      }
+      try {
+        if (sent < pcm.size) {
+          const slice = pcm.slice(sent, Math.min(sent + 4e6, pcm.size));
+          sent += slice.size;
+          const buffer = await slice.arrayBuffer();
+          worker.postMessage({ type: 'chunk', buffer }, [buffer]);
+          onProgress?.(sent / pcm.size);
+        } else {
+          worker.postMessage({ type: 'finish' });
+        }
+      } catch (err) {
+        worker.terminate();
+        reject(err);
+      }
+    };
+    worker.postMessage({ type: 'start', sampleRate: result.sampleRate, totalSamples: result.numSamples });
+  });
+}
+
+const FORMATS = {
+  flac: { ext: 'flac', mime: 'audio/flac', description: 'FLAC audio' },
+  wav: { ext: 'wav', mime: 'audio/wav', description: 'WAV audio' },
+};
+
+// Get the recording onto the user's disk in the requested format.
 // 'confirmed': written via the File System Access API and close() resolved -
 //   the file is verifiably on disk, so the browser copy is safe to free.
 // 'triggered': anchor download started - the page gets no completion signal
 //   for those, so cleanup needs the human to confirm.
 // 'cancelled': user closed the picker - keep everything, change nothing.
-async function deliverFile({ name, startedAt, getResult, btn }) {
-  if (!window.showSaveFilePicker) {
-    triggerDownload(await getResult());
-    return 'triggered';
-  }
-  let handle;
-  try {
-    // Pick the destination first, while the click gesture is still fresh -
-    // assembling a 3-hour file can outlive the transient activation window.
-    handle = await window.showSaveFilePicker({
-      suggestedName: buildFilename(name, new Date(startedAt)),
-      types: [{ description: 'WAV audio', accept: { 'audio/wav': ['.wav'] } }],
-    });
-  } catch {
-    return 'cancelled';
-  }
-  const result = await getResult();
+async function deliverFile({ name, startedAt, getResult, btn, format = 'flac' }) {
+  const fmt = FORMATS[format];
   const label = btn?.textContent;
   if (btn) btn.disabled = true;
   try {
+    const produce = async () => {
+      const result = await getResult();
+      if (format !== 'flac') return result;
+      const blob = await encodeToFlac(result, (p) => {
+        if (btn) btn.textContent = `Compressing… ${Math.round(p * 100)}%`;
+      });
+      return { ...result, blob };
+    };
+    if (!window.showSaveFilePicker) {
+      triggerDownload(await produce(), fmt.ext);
+      return 'triggered';
+    }
+    let handle;
+    try {
+      // Pick the destination first, while the click gesture is still fresh -
+      // preparing a 3-hour file can outlive the transient activation window.
+      handle = await window.showSaveFilePicker({
+        suggestedName: buildFilename(name, new Date(startedAt), fmt.ext),
+        types: [{ description: fmt.description, accept: { [fmt.mime]: ['.' + fmt.ext] } }],
+      });
+    } catch {
+      return 'cancelled';
+    }
+    const result = await produce();
     const writable = await handle.createWritable();
     const reader = result.blob.stream().getReader();
     let written = 0;
@@ -590,14 +658,15 @@ async function deliverFile({ name, startedAt, getResult, btn }) {
   }
 }
 
-async function saveRecording() {
+async function saveRecording(format, btn) {
   if (!state.result) return;
   try {
     const outcome = await deliverFile({
       name: state.result.name,
       startedAt: state.result.startedAt,
       getResult: async () => state.result,
-      btn: $('btn-save'),
+      btn,
+      format,
     });
     if (outcome === 'cancelled') return;
     state.saved = true;
@@ -689,6 +758,7 @@ async function recoverSave() {
       startedAt: meta.startedAt,
       getResult: () => state.store.finalize(),
       btn: $('btn-recover-save'),
+      format: 'flac',
     });
     if (outcome === 'cancelled') return;
     if (outcome === 'confirmed') {
@@ -740,7 +810,8 @@ async function boot() {
   $('btn-start').addEventListener('click', startRecording);
   $('btn-pause').addEventListener('click', togglePause);
   $('btn-stop').addEventListener('click', () => stopRecording());
-  $('btn-save').addEventListener('click', saveRecording);
+  $('btn-save').addEventListener('click', () => saveRecording('flac', $('btn-save')));
+  $('btn-save-wav').addEventListener('click', () => saveRecording('wav', $('btn-save-wav')));
   $('btn-free-space').addEventListener('click', freeSpace);
   $('btn-new').addEventListener('click', newRecording);
   navigator.mediaDevices?.addEventListener?.('devicechange', () => {
