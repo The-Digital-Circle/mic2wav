@@ -355,7 +355,9 @@ async function refreshStoragePanel() {
       : `about ${Math.max(0, hoursLeft).toFixed(1)} hours`;
     low = hoursLeft < 4;
     usageText = `${formatBytes(usage)} of browser storage in use · room for ${room} more audio`;
-    explain = usage > (hasStored ? info.bytes : 0) + 100e6;
+    // Scale with what we actually store: small leftovers (uncompacted
+    // tombstones after cleanup) deserve the explainer as much as gigabytes.
+    explain = usage > (hasStored ? info.bytes : 0) * 1.5 + 1e6;
   } catch { /* estimate unsupported - hide the line */ }
   $('storage-usage').textContent = usageText;
   $('storage-usage').classList.toggle('low', low);

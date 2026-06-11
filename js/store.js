@@ -18,7 +18,7 @@ function done(tx) {
   });
 }
 
-async function openDb() {
+async function openDb(onForcedClose) {
   const r = indexedDB.open(DB_NAME, DB_VERSION);
   r.onupgradeneeded = () => {
     const db = r.result;
@@ -28,14 +28,31 @@ async function openDb() {
   const db = await req(r);
   // Another tab deleting the database fires versionchange here: release our
   // connection so its delete can proceed; we reconnect lazily on next use.
-  db.onversionchange = () => db.close();
+  db.onversionchange = () => {
+    db.close();
+    onForcedClose?.();
+  };
   return db;
+}
+
+// Opening an IndexedDB database CREATES it, so existence checks must not
+// open. Without this, every page load left an empty database behind and the
+// origin never reached zero storage after cleanup.
+async function dbExists() {
+  if (indexedDB.databases) {
+    try {
+      return (await indexedDB.databases()).some((d) => d.name === DB_NAME);
+    } catch { /* fall through */ }
+  }
+  return true; // can't tell without opening - assume it might exist
 }
 
 export class SessionStore {
   static async open() {
     const store = new SessionStore();
-    await store.tx('meta', 'readonly'); // fail fast where IndexedDB is unavailable
+    // Fail fast where IndexedDB is unavailable - but only touch a database
+    // that already exists, so a fresh visit leaves no storage behind.
+    if (await dbExists()) await store.tx('meta', 'readonly');
     navigator.storage?.persist?.().catch(() => {});
     return store;
   }
@@ -46,7 +63,7 @@ export class SessionStore {
 
   async tx(stores, mode) {
     for (let attempt = 0; ; attempt++) {
-      if (!this._db) this._db = await openDb();
+      if (!this._db) this._db = await openDb(() => { this._db = null; });
       try {
         return this._db.transaction(stores, mode);
       } catch (err) {
@@ -72,6 +89,8 @@ export class SessionStore {
   }
 
   async findRecoverable() {
+    // Peek before opening: a read must not conjure an empty database.
+    if (!this._db && !(await dbExists())) return null;
     const tx = await this.tx('meta', 'readonly');
     const meta = await req(tx.objectStore('meta').get('session'));
     return meta ?? null;

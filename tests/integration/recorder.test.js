@@ -238,6 +238,11 @@ test('confirmed picker save frees the browser copy automatically', async () => {
     await page.waitForTimeout(400);
     assert.equal(await page.isHidden('#recovery-card'), true);
     assert.equal(await page.isHidden('#stored-row'), true);
+
+    // Zero footprint at rest: existence checks must not recreate the
+    // database, or the origin never returns to empty after cleanup.
+    const dbs = await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
+    assert.ok(!dbs.includes('mic2wav'), `database recreated by a read: ${dbs}`);
   } finally {
     await browser.close();
   }
