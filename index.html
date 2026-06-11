@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Podcast Recorder</title>
+  <meta name="description" content="Record high-quality WAV audio in your browser — nothing to install, nothing uploaded.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8E%99%EF%B8%8F%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="card">
+    <header>
+      <h1>🎙️ Podcast Recorder</h1>
+      <p class="tagline">Record studio-quality audio right here in your browser. Nothing to install — your audio never leaves this device until you send the file.</p>
+    </header>
+
+    <section id="screen-unsupported" hidden>
+      <p class="error">Sorry — this browser can't record audio the way we need.</p>
+      <p class="hint">Please use a recent version of Chrome, Edge, Firefox or Safari (2021 or newer) and open this page again.</p>
+    </section>
+
+    <section id="screen-setup">
+      <div id="recovery-card" class="recovery" hidden>
+        <p id="recovery-text"></p>
+        <div class="row">
+          <button id="btn-recover-save" class="primary">Save it</button>
+          <button id="btn-recover-discard" class="ghost">Discard</button>
+        </div>
+      </div>
+
+      <button id="btn-enable" class="primary big">Enable microphone</button>
+      <p id="mic-error" class="error" hidden></p>
+
+      <div id="setup-controls" hidden>
+        <label class="field">Microphone
+          <select id="device-select"></select>
+        </label>
+
+        <div class="meter"><div id="meter-setup-fill" class="meter-fill"></div></div>
+        <p id="status-pill" data-level="silent">Say a few words to check your level…</p>
+
+        <label class="check"><input type="checkbox" id="boost-toggle"> Boost quiet microphone (auto level)</label>
+
+        <button id="btn-test" class="ghost">Test my microphone</button>
+        <p class="hint">Records 5 seconds and plays it back, so you hear exactly what we hear. Headphones recommended.</p>
+
+        <label class="field"><span>Your name <span class="opt">(used in the file name)</span></span>
+          <input id="name-input" type="text" maxlength="40" autocomplete="name" placeholder="e.g. Alice">
+        </label>
+
+        <button id="btn-start" class="record big" disabled>● Start recording</button>
+      </div>
+
+      <div id="storage-panel" class="storage" hidden>
+        <div id="stored-row" class="stored-row" hidden>
+          <div class="stored-info">
+            <span id="stored-title">Stored recording</span>
+            <span id="stored-detail" class="stored-detail"></span>
+          </div>
+          <button id="btn-delete-stored" class="danger small">Delete</button>
+        </div>
+        <p id="storage-usage" class="hint"></p>
+        <p id="storage-explain" class="hint" hidden>More than your recordings add up to? Browsers tidy up freed space on their own schedule, and anything else served from this address shares the same number.</p>
+      </div>
+    </section>
+
+    <section id="screen-record" hidden>
+      <div class="rec-head"><span id="rec-indicator" class="dot"></span><span id="rec-state-label">Recording</span></div>
+      <div id="timer" class="timer">0:00</div>
+      <p id="rec-size" class="rec-size"></p>
+      <div class="meter"><div id="meter-rec-fill" class="meter-fill"></div></div>
+      <p id="rec-banner" class="banner" hidden></p>
+      <div class="row">
+        <button id="btn-pause" class="ghost big">Pause</button>
+        <button id="btn-stop" class="record big">■ Stop</button>
+      </div>
+      <p class="hint">Saving continuously — your audio is safe on this device even if the browser crashes.</p>
+    </section>
+
+    <section id="screen-done" class="center" hidden>
+      <h2>That's a wrap! 🎉</h2>
+      <p class="stats" id="done-stats"><span id="done-duration"></span> · <span id="done-size"></span></p>
+      <p id="done-note" class="banner" hidden></p>
+      <button id="btn-save" class="primary big">Save recording</button>
+      <div id="save-confirm" class="save-confirm" hidden>
+        <p class="hint">Once the .wav file is safely in your Downloads, you can free it from this browser:</p>
+        <button id="btn-free-space" class="ghost">It saved — free up space</button>
+      </div>
+      <p class="hint">Then send the .wav file to your host — email, Drive, WeTransfer, whatever works.</p>
+      <button id="btn-new" class="ghost">Start a new recording</button>
+    </section>
+  </main>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

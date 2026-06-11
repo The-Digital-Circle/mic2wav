@@ -1,0 +1,13 @@
+{
+  "name": "mic2wav",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test 'tests/unit/*.test.js'",
+    "test:integration": "node tests/fixtures/generate.js && node --test 'tests/integration/*.test.js'",
+    "test:all": "npm test && npm run test:integration"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0"
+  }
+}
