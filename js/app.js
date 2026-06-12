@@ -820,6 +820,10 @@ async function boot() {
 
   requestAnimationFrame(renderLoop);
   setInterval(updateStatusPill, 250);
+
+  // Offline support; the worker is network-first, so it never staleness-locks
+  // online users to an old deploy.
+  navigator.serviceWorker?.register('./sw.js').catch(() => {});
 }
 
 boot();

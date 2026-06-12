@@ -32,8 +32,13 @@ fix is a "double-ender": each side records locally. This is the guest's side.
   and, once the write is verifiably complete, frees the browser copy
   automatically. Elsewhere (downloads give the page no completion signal) a
   one-tap "It saved — free up space" confirmation does the same.
-- **Tiny** — ~11 KB gzipped (32 KB raw) of static files, no frameworks,
-  no webfonts, works on slow connections.
+- **Tiny** — ~22 KB gzipped of static files, no frameworks, no webfonts,
+  works on slow connections.
+- **Installable & offline-capable** — a web app manifest plus a
+  network-first service worker: Chrome offers "Install app", and after one
+  visit the recorder boots with no connection at all (recording is local
+  anyway). Network-first means online users always get the latest deploy —
+  no stale-version trap. Regenerate icons with `node tests/make-icons.js`.
 
 ## Hosting
 

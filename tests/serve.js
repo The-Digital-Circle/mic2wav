@@ -8,6 +8,8 @@ const MIME = {
   '.js': 'text/javascript',
   '.svg': 'image/svg+xml',
   '.wav': 'audio/wav',
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
 };
 
 export function startServer(root) {

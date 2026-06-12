@@ -8,7 +8,9 @@ import { gzipSync } from 'node:zlib';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 async function deployedFiles() {
-  const files = ['index.html', 'styles.css'];
+  // The page-load path: html, css, js, manifest, service worker. Icons are
+  // fetched only on install, so they sit outside the transfer budget.
+  const files = ['index.html', 'styles.css', 'manifest.webmanifest', 'sw.js'];
   for (const f of await readdir(join(root, 'js'))) files.push(join('js', f));
   return files;
 }

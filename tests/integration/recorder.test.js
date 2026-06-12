@@ -381,6 +381,26 @@ test('a second tab cannot disturb a live recording', async () => {
   }
 });
 
+test('app boots fully offline after one visit (service worker)', async () => {
+  const { browser, page } = await launch(fixture('tone.wav'));
+  try {
+    await page.goto(baseURL);
+    await page.waitForSelector('#screen-setup:not([hidden])');
+    // ready resolves once the worker is active; install (cache.addAll) has
+    // completed by then, and clients.claim makes it control this page.
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+
+    await page.context().setOffline(true);
+    await page.reload();
+    await page.waitForSelector('#screen-setup:not([hidden])', { timeout: 10000 });
+    assert.equal(await page.isVisible('#btn-enable'), true, 'app is usable with no network');
+    await page.context().setOffline(false);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('mic test records and plays back', async () => {
   const { browser, page } = await launch(fixture('tone.wav'));
   try {
