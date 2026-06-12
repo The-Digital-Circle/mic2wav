@@ -5,6 +5,8 @@ configure anything. Open the page, check your mic, hit record, save a
 high-quality WAV — all locally in the browser. No uploads, no accounts,
 no dependencies.
 
+**▶ Try it: [record.thedigitalcircle.org](https://record.thedigitalcircle.org/)**
+
 **Why:** remote-call audio (Zoom etc.) is compressed and gappy. The standard
 fix is a "double-ender": each side records locally. This is the guest's side.
 
