@@ -8,6 +8,8 @@
   --rec: #ef4444;
   --good: #34d399;
   --warn: #fbbf24;
+  --gap: 16px;     /* between distinct controls (Material 8dp grid x2) */
+  --gap-sm: 8px;  /* within related clusters */
 }
 
 * { box-sizing: border-box; }
@@ -32,17 +34,18 @@ body {
   background: var(--card);
   border: 1px solid var(--card-edge);
   border-radius: 16px;
-  padding: 28px 24px;
+  padding: 24px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   align-self: flex-start;
 }
 
-header { text-align: center; margin-bottom: 20px; }
+header { text-align: center; margin-bottom: 24px; }
 h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: -0.01em; }
 h2 { margin: 0; }
 .tagline { color: var(--muted); margin: 0; font-size: 0.95rem; }
 
-section { display: grid; gap: 14px; }
+section { display: grid; gap: var(--gap); }
+#setup-controls { display: grid; gap: var(--gap); }
 .center { text-align: center; justify-items: center; }
 .stats { margin: 0; font-size: 1.1rem; }
 
@@ -50,7 +53,7 @@ button {
   font: inherit;
   border: 0;
   border-radius: 12px;
-  padding: 12px 18px;
+  padding: 12px 20px;
   cursor: pointer;
   color: var(--text);
   background: #232836;
@@ -60,15 +63,15 @@ button:hover:not(:disabled) { filter: brightness(1.15); }
 button:active:not(:disabled) { transform: scale(0.98); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.big { padding: 16px 20px; font-size: 1.05rem; font-weight: 600; width: 100%; }
-.small { padding: 8px 14px; font-size: 0.9rem; }
+.big { padding: 16px 24px; font-size: 1.05rem; font-weight: 600; width: 100%; }
+.small { padding: 8px 16px; font-size: 0.9rem; }
 .primary { background: linear-gradient(135deg, #f59e0b, #d97706); color: #1a1304; }
 .record { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; }
 .ghost { background: #232836; }
 .danger { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.45); color: #f87171; }
 .danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.22); filter: none; }
 
-.field { display: grid; gap: 6px; font-size: 0.9rem; color: var(--muted); }
+.field { display: grid; gap: var(--gap-sm); font-size: 0.9rem; color: var(--muted); }
 .field .opt { opacity: 0.7; }
 select, input[type="text"] {
   font: inherit;
@@ -76,7 +79,7 @@ select, input[type="text"] {
   background: #11141c;
   border: 1px solid var(--card-edge);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 12px 16px;
   width: 100%;
 }
 
@@ -101,8 +104,8 @@ select, input[type="text"] {
 #status-pill {
   margin: 0;
   font-size: 0.92rem;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
   background: #11141c;
   border: 1px solid var(--card-edge);
   color: var(--muted);
@@ -114,16 +117,16 @@ select, input[type="text"] {
 .hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
 .error { color: var(--rec); font-size: 0.9rem; margin: 0; }
 
-.row { display: flex; gap: 12px; width: 100%; }
+.row { display: flex; gap: var(--gap); width: 100%; }
 .row > * { flex: 1; }
 
 .recovery {
   background: rgba(245, 158, 11, 0.08);
   border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: 12px;
-  padding: 14px;
+  padding: 16px;
   display: grid;
-  gap: 10px;
+  gap: var(--gap);
 }
 .recovery p { margin: 0; font-size: 0.95rem; }
 
@@ -157,24 +160,24 @@ select, input[type="text"] {
   color: var(--muted);
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
-  margin: -10px 0 0;
+  margin: -8px 0 0; /* nets to --gap-sm under the timer */
 }
 
 .storage {
   border-top: 1px solid var(--card-edge);
-  padding-top: 14px;
+  padding-top: 16px;
   display: grid;
-  gap: 10px;
+  gap: var(--gap-sm);
 }
 .stored-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--gap);
   background: #11141c;
   border: 1px solid var(--card-edge);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 16px;
 }
 .stored-row button { flex: none; }
 .stored-info { display: grid; min-width: 0; }
@@ -184,8 +187,8 @@ select, input[type="text"] {
 
 .banner {
   margin: 0;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-size: 0.9rem;
   background: rgba(251, 191, 36, 0.1);
   border: 1px solid rgba(251, 191, 36, 0.4);
@@ -198,9 +201,9 @@ select, input[type="text"] {
   color: var(--good);
 }
 
-.save-confirm { display: grid; gap: 8px; width: 100%; }
+.save-confirm { display: grid; gap: var(--gap-sm); width: 100%; }
 
 @media (max-width: 420px) {
-  .card { padding: 22px 16px; }
+  .card { padding: 16px; }
   .timer { font-size: 2.4rem; }
 }
